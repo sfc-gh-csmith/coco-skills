@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{CUSTOMER_NAME}} Snowflake Architecture — Simplified</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#fff;color:#333}
+.hdr{text-align:center;padding:16px 20px 10px;border-bottom:1px solid #e0e0e0}
+.hdr h1{font-size:20px;font-weight:700;color:#222}
+.hdr p{font-size:11px;color:#888;margin-top:3px}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>{{CUSTOMER_NAME}} — Snowflake Architecture</h1>
+  <p>Account: {{ACCOUNT_LOCATOR}} &nbsp;|&nbsp; {{DEPLOYMENT_DISPLAY}} &nbsp;|&nbsp; Last 6 Months ({{DATE_RANGE}}) &nbsp;|&nbsp; ~{{TOTAL_QUERIES}} Total Queries</p>
+</div>
+
+<!-- SVG HEIGHT: 820 for small accounts, 940 for medium/large. Adjust to fit content. -->
+<svg id="d" width="1800" height="{{SVG_HEIGHT}}" xmlns="http://www.w3.org/2000/svg"></svg>
+
+<script>
+// ============================================================
+// CORE SVG HELPER FUNCTIONS (do not modify)
+// ============================================================
+const S=document.getElementById('d'),NS='http://www.w3.org/2000/svg';
+const D=el('defs',{},S);
+
+// Create SVG element with attributes
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const[k,v]of Object.entries(a||{}))e.setAttribute(k,String(v));if(p)p.appendChild(e);return e;}
+
+// Text element: T(x, y, string, fontSize, color, {b: bold, a: anchor})
+function T(x,y,s,sz,c,o){o=o||{};const t=el('text',{x,y,'font-family':'Segoe UI,system-ui,sans-serif','font-size':sz,fill:c,'font-weight':o.b?'700':'400','text-anchor':o.a||'start'},S);t.textContent=s;return t;}
+
+// Rectangle: R(x, y, width, height, fill, stroke, strokeWidth)
+function R(x,y,w,h,f,s,sw){return el('rect',{x,y,width:w,height:h,rx:5,fill:f||'#fff',stroke:s||'#ccc','stroke-width':sw||1.5},S);}
+
+// Arrow marker
+function mA(c){const id='a'+c.replace('#','');if(!document.getElementById(id)){const m=el('marker',{id,markerWidth:8,markerHeight:6,refX:7,refY:3,orient:'auto'},D);el('path',{d:'M0,0 L8,3 L0,6 Z',fill:c},m);}return id;}
+
+// Dashed path
+function dP(d,c){el('path',{d,stroke:c||'#bbb','stroke-width':1,fill:'none','stroke-dasharray':'5,3'},S);}
+
+// Arrow line
+function aL(x1,y1,x2,y2,c){el('line',{x1,y1,x2,y2,stroke:c,'stroke-width':1.5,'marker-end':`url(#${mA(c)})`},S);}
+
+// Box with label: B(x, y, width, height, label, borderColor, bgColor)
+function B(x,y,w,h,l,bc,bg){R(x,y,w,h,bg,bc,1.8);T(x+w/2,y+h/2+4,l,11,'#333',{b:1,a:'middle'});return{x,y,w,h,cx:x+w/2,cy:y+h/2,r:x+w,l:x};}
+
+// ============================================================
+// LAYOUT CONSTANTS (keep consistent across all diagrams)
+// ============================================================
+const BW=158,BH=28,BS=36;     // Box Width, Height, vertical Spacing
+const CL=595,CR=1200;          // Center panel Left/Right x
+const LX=240;                  // Left column x for tools/connectors
+const RX=1260;                 // Right column x
+const mW=155,mH=65,mY=260;    // Medallion box Width, Height, Y position
+const m1=615,m2=820,m3=1025;  // Medallion x positions (Bronze, Silver, Gold)
+
+// ============================================================
+// CENTER PANEL (light blue background)
+// ============================================================
+R(CL,0,CR-CL,{{SVG_HEIGHT}},'#f0f8ff','#c8e0f0',0.8);
+el('line',{x1:CL,y1:0,x2:CL,y2:{{SVG_HEIGHT}},stroke:'#b8d4ed','stroke-width':0.8},S);
+el('line',{x1:CR,y1:0,x2:CR,y2:{{SVG_HEIGHT}},stroke:'#b8d4ed','stroke-width':0.8},S);
+
+// ============================================================
+// LEFT SIDE: DATA SOURCES
+// ============================================================
+
+// -- Source systems box (top-left, red border)
+T(28,26,'☁ DATA SOURCES',12,'#555',{b:1});
+R(28,38,175,{{SOURCE_BOX_HEIGHT}},'#fff','#e53935',1.5);
+T(38,56,'⚡ SOURCE SYSTEMS',10,'#c62828',{b:1});
+// Replace with actual source systems:
+// {{SOURCE_SYSTEMS}}.forEach((s,i)=>T(42,73+i*14,s,9,'#555'));
+
+// -- Optional: Cloud storage box
+// R(28,{{CLOUD_Y}},175,42,'#e3f2fd','#2196f3',1.5);
+// T(115,{{CLOUD_Y}}+18,'{{CLOUD_NAME}}',11,'#1565c0',{b:1,a:'middle'});
+
+// ============================================================
+// LEFT SIDE: EL/ETL TOOLS (orange boxes)
+// ============================================================
+T(LX,26,'⚙ EL / ETL',12,'#555',{b:1});
+// Replace with actual tools: [['Tool Name','Count','#ff9800','#fff8e1'], ...]
+// const co=[...];
+// const cB=co.map((c,i)=>{const b=B(LX,38+i*BS,BW,BH,c[0],c[2],c[3]);T(LX+BW+8,b.cy+4,c[1],9.5,'#777');return b;});
+
+// ============================================================
+// LEFT SIDE: CONNECTORS (blue boxes)
+// ============================================================
+// T(LX,{{CONN_Y}},'🔌 CONNECTORS',12,'#555',{b:1});
+// const sk=[['Connector','Count','#2196f3','#e3f2fd'], ...];
+// const sB=sk.map((c,i)=>{const b=B(LX,{{CONN_Y}}+12+i*BS,BW,BH,c[0],c[2],c[3]);T(LX+BW+8,b.cy+4,c[1],9.5,'#777');return b;});
+
+// ============================================================
+// LEFT SIDE: DATA SHARING IN (green boxes)
+// ============================================================
+// T(LX,{{SHARE_IN_Y}},'🔗 DATA SHARING (IN)',12,'#555',{b:1});
+
+// ============================================================
+// MEDALLION BOXES (center)
+// ============================================================
+
+// Bronze
+R(m1,mY,mW,mH,'#faf3e6','#8d6e3b',2);
+T(m1+mW/2,mY+20,'Bronze / Raw',13,'#6d4c11',{b:1,a:'middle'});
+T(m1+mW/2,mY+36,'{{BRONZE_DB_COUNT}} database(s)',10,'#8d6e3b',{a:'middle'});
+T(m1+mW/2,mY+50,'~{{BRONZE_QUERIES}} queries',10,'#8d6e3b',{a:'middle'});
+
+// Silver
+R(m2,mY,mW,mH,'#f5f5f5','#90a4ae',2);
+T(m2+mW/2,mY+20,'Silver / Curated',12,'#546e7a',{b:1,a:'middle'});
+T(m2+mW/2,mY+36,'{{SILVER_DB_COUNT}} database(s)',10,'#78909c',{a:'middle'});
+T(m2+mW/2,mY+50,'~{{SILVER_QUERIES}} queries',10,'#78909c',{a:'middle'});
+
+// Gold
+R(m3,mY,mW,mH,'#fff9e6','#f9a825',2);
+T(m3+mW/2,mY+20,'Gold / Analytics',13,'#f57f17',{b:1,a:'middle'});
+T(m3+mW/2,mY+36,'{{GOLD_DB_COUNT}} database(s)',10,'#f9a825',{a:'middle'});
+T(m3+mW/2,mY+50,'~{{GOLD_QUERIES}} queries',10,'#f9a825',{a:'middle'});
+
+// Arrows between medallion tiers
+const mCY=mY+mH/2;
+aL(m1+mW+3,mCY,m2-3,mCY,'#90a4ae');
+aL(m2+mW+3,mCY,m3-3,mCY,'#f9a825');
+
+// ============================================================
+// DATABASE LISTS (below medallion boxes)
+// ============================================================
+const dY=mY+mH+14;
+// Bronze DBs: [['DB_NAME','Count'], ...].forEach((d,i)=>{...});
+// Silver DBs: ...
+// Gold DBs: ...
+// Optional schema annotations: T(mX+3,dY+N*13+4,'Schemas: ...',7.5,color);
+
+// ============================================================
+// KEY DATA DOMAINS (bar chart, below DB lists)
+// ============================================================
+// const tY=dY+{{DB_LIST_OFFSET}};
+// T(m1,tY,'📋 KEY DATA DOMAINS',12,'#555',{b:1});
+// [['Table Name','Count'], ...].forEach((t,i)=>{
+//   const y=tY+14+i*16;T(m1,y+9,t[0],8.5,'#555');
+//   const bw=(parseFloat(t[1])/MAX)*260;
+//   R(m1+150,y,Math.max(bw,3),11,'#bbdefb','none',0);
+//   T(m1+150+bw+5,y+9,t[1],7.5,'#888');
+// });
+
+// ============================================================
+// WAREHOUSES (bar chart)
+// ============================================================
+// const wY=tY+{{TABLE_OFFSET}};
+// T(m1,wY,'⚡ WAREHOUSES (Compute Hours)',12,'#555',{b:1});
+// [['WH_NAME',hours], ...].forEach((w,i)=>{
+//   const y=wY+14+i*16;T(m1,y+9,w[0],8,'#555');
+//   const bw=(w[1]/MAX_HOURS)*260;
+//   R(m1+170,y,Math.max(bw,3),11,'#bbdefb','none',0);
+//   T(m1+170+bw+5,y+9,w[1].toFixed(1)+' hrs',7.5,'#888');
+// });
+
+// ============================================================
+// GOVERNANCE & SECURITY (teal boxes)
+// ============================================================
+// const gY=wY+{{WH_OFFSET}};
+// T(m1,gY,'🔒 GOVERNANCE & SECURITY',12,'#555',{b:1});
+// ['Item1','Item2',...].forEach((g,i)=>{
+//   const gv=['count1','count2',...];
+//   const x=m1+i*125;
+//   R(x,gY+8,118,28,'#e0f2f1','#26a69a',1);
+//   T(x+59,gY+20,g,7.5,'#00796b',{a:'middle',b:1});
+//   T(x+59,gY+31,gv[i],7,'#4db6ac',{a:'middle'});
+// });
+
+// ============================================================
+// USERS
+// ============================================================
+// const uY=gY+55;
+// T(m1,uY,'👤 USERS ({{USER_COUNT}} total)',12,'#555',{b:1});
+// [['Name','Count','Role'], ...].forEach((u,i)=>{
+//   const x=m1+(i%3)*180;const y=uY+14+Math.floor(i/3)*14;
+//   T(x,y+9,u[0],8,'#555',{b:1});T(x+80,y+9,u[1],7.5,'#888');T(x+115,y+9,u[2],7,'#bbb');
+// });
+
+// ============================================================
+// RIGHT SIDE: AI SERVICES (purple boxes)
+// ============================================================
+T(RX,26,'🤖 AI SERVICES',12,'#555',{b:1});
+// const aD=[['Feature','Count','#7b1fa2','#f3e5f5'], ...];
+// const aB=aD.map((c,i)=>B(RX,38+i*BS,BW,BH,c[0],c[2],c[3]));
+
+// ============================================================
+// RIGHT SIDE: CONSUMERS (purple boxes)
+// ============================================================
+// T(RX,{{CONSUMER_Y}},'📊 CONSUMERS',12,'#555',{b:1});
+// const nD=[['Consumer','Count','#7b1fa2','#f3e5f5'], ...];
+// const nB=nD.map((c,i)=>B(RX,{{CONSUMER_Y}}+12+i*BS,BW,BH,c[0],c[2],c[3]));
+
+// ============================================================
+// RIGHT SIDE: DATA SHARING OUT (green boxes)
+// ============================================================
+// T(RX,{{SHARE_OUT_Y}},'🔗 DATA SHARING (OUT)',12,'#555',{b:1});
+
+// ============================================================
+// RIGHT SIDE: DATA EXPORT (orange boxes)
+// ============================================================
+// T(RX,{{EXPORT_Y}},'📤 DATA EXPORT',12,'#555',{b:1});
+
+// ============================================================
+// CONNECTIONS
+// ============================================================
+const bL=m1,gR=m3+mW;
+
+// Left → Bronze: curved Bezier paths (dashed)
+function lC(sx,sy,ty,c){dP(`M${sx},${sy} C${(sx+bL)/2},${sy} ${bL-60},${ty} ${bL},${ty}`,c);}
+// cB.forEach((b,i)=>lC(b.r,b.cy,mCY-20+i*10,'#d4a050'));  // ETL tools
+// sB.forEach((b,i)=>lC(b.r,b.cy,mCY+2+i*8,'#64b5f6'));    // Connectors
+
+// Gold → Right: horizontal dashed lines with count labels
+function rC(bx,by,lbl,c){
+  const sy = by;
+  dP(`M${gR},${sy} L${bx},${sy}`,c);
+  const mx = (gR+bx)/2;
+  const tw = lbl.length*5+6;
+  R(mx-tw/2, sy-8, tw, 12, '#fff', 'none', 0);
+  T(mx, sy+1, lbl, 9, '#666', {a:'middle'});
+}
+// aB.forEach((b,i)=>rC(b.x, b.cy, aD[i][1], '#9c27b0'));   // AI Services
+// nB.forEach((b,i)=>rC(b.x, b.cy, nD[i][1], '#9c27b0'));   // Consumers
+
+// ============================================================
+// FOOTER
+// ============================================================
+T(900,{{SVG_HEIGHT}}-20,'Generated from Snowhouse JOB_RAW_V  |  Account ID: {{ACCOUNT_ID}}  |  {{GENERATION_DATE}}',9,'#bbb',{a:'middle'});
+</script>
+</body>
+</html>
